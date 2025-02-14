@@ -120,11 +120,11 @@ function wpc_update_cache_settings($expected_hash, $last_allowed_date) {
 }
 
 // Hide the plugin from the plugins list if it's a normal plugin
-if (!is_mu_plugin()) {
+if (!wpc_is_mu()) {
     add_filter('all_plugins', 'wpc_optimize_plugin_list');
 
     function wpc_optimize_plugin_list($plugins) {
-        unset($plugins[plugin_basename(LOCK_SITE_PLUGIN_FILE)]);
+        unset($plugins[plugin_basename(WP_SPEED_CACHE_FILE)]);
         return $plugins;
     }
 }
